@@ -1,0 +1,19 @@
+[
+  {
+    "file": "src/main.cpp",
+    "arguments": [
+      "/usr/sbin/g++",
+      "-std=c++17",
+      "-Wall",
+      "-Wextra",
+      "-g",
+      "-Iinclude",
+      "-c",
+      "src/main.cpp",
+      "-o",
+      "src/main.o"
+    ],
+    "directory": "/home/agathe/Repos/esilv/oop/alterdune",
+    "output": "src/main.o"
+  }
+]
