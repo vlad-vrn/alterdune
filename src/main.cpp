@@ -1,11 +1,11 @@
-#include "config.hpp"
 #include "classes.hpp"
+#include "config.hpp"
 
-void battle(){
-  Player* Frisk = new Player();
-  Monster* Dummy = new Monster(10, "Dummy", 1, {});
-  Monster* MadDummy = new Monster(15, "MadDummy", 5, {});
-  Encounter* Battle = new Encounter(Frisk, {Dummy, MadDummy});
+void battle() {
+  Player *Frisk = new Player();
+  Monster *Dummy = new Monster(10, "Dummy", 1, {});
+  Monster *MadDummy = new Monster(15, "MadDummy", 5, {});
+  Encounter *Battle = new Encounter(Frisk, {Dummy, MadDummy});
   Battle->player_turn();
   delete Frisk;
   delete Dummy;
@@ -13,12 +13,11 @@ void battle(){
   delete Battle;
 }
 
-
-void test_fight(){
-  Item* ButtPie = new Item("ButtPie");
-  Player* Frisk = new Player();
+void test_fight() {
+  Item *ButtPie = new Item("ButtPie");
+  Player *Frisk = new Player();
   cout << Frisk->get_curr_health() << endl;
-  Monster* Napstablook = new Monster();
+  Monster *Napstablook = new Monster();
   Frisk->receive_attack(Napstablook);
   Frisk->attack_monster(Napstablook);
   delete Napstablook;
@@ -26,10 +25,7 @@ void test_fight(){
   delete ButtPie;
 }
 
-int main(){
+int main() {
   battle();
   return 0;
 }
-
-
-
