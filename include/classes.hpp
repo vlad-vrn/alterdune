@@ -5,25 +5,39 @@ class Monster;
 
 class Item {
   string name;
+  int type;
+  int value;
 
 public:
   Item(string item_name) : name(item_name) {}
 };
 
-class Player {
+class Character {
+protected:
   int max_health;
   int curr_health;
-  int lv;
   int attack;
+  int defense;
   string name;
+
+public:
+  Character(int hp, int atk, int def, string n)
+      : max_health(hp), curr_health(hp), attack(atk), defense(def), name(n) {}
+  virtual ~Character() {}
+  void receive_attack(int);
+  int get_curr_health() { return curr_health; };
+  int get_max_health() { return max_health; };
+  string get_name() { return name; };
+};
+
+class Player : public Character {
+  int lv;
   vector<Item> items;
 
 public:
-  Player(int max_hp = 20, int love = 1, int atk = 5,
+  Player(int max_hp = 20, int love = 1, int atk = 5, int def = 5,
          string human_name = "Chara", vector<Item> held_items = {})
-      : max_health(max_hp), curr_health(max_hp), lv(love), attack(atk),
-        name(human_name), items(held_items) {}
-  int get_curr_health() const { return curr_health; }
+      : Character(max_hp, atk, def, human_name), lv(love), items(held_items) {}
   void receive_attack(
       const Monster
           *monster); // Je sais pas si ca doit etre une methode de Monster ou
@@ -32,18 +46,14 @@ public:
   void attack_monster(Monster *monster);
 };
 
-class Monster {
-  int curr_health;
-  string name;
-  int attack;
+class Monster : public Character {
   string intro_;
   string *dialogues;
 
 public:
   Monster(int max_hp = 5, string monster_name = "Napstablook", int atk = 5,
-          string *dials = {})
-      : curr_health(max_hp), name(monster_name), attack(atk), dialogues(dials) {
-  }
+          int def = 5, string *dials = {})
+      : Character(max_hp, atk, def, monster_name), dialogues(dials) {}
   string get_name() const { return name; }
   int get_attack() const { return attack; }
   int get_hp() const { return curr_health; }
