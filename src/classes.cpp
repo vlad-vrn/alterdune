@@ -1,27 +1,69 @@
 #include "classes.hpp"
 
-void Player::receive_attack(const Monster* monster){
-  int new_hp = curr_health - monster->get_attack();
-  cout << monster->get_name() << " attacked you !" << endl;
-  cout << "You have now " << new_hp << " HP !" << endl;
-  curr_health = new_hp;
+// Act
+
+Act::Act(string id, string name, string display_text, int mercy_impact)
+    : id(id), name(name), display_text(display_text), mercy_impact(mercy_impact) {}
+
+// Item
+
+Item::Item(string name, string type, int value, int quantity)
+    : name(name), type(type), value(value), quantity(quantity) {}
+
+void Item::use() {
+    if (quantity > 0) quantity--;
 }
 
+// GameStats
 
-void Monster::receive_attack(int damages){
-  curr_health = curr_health - damages;
+void GameStats::add_spared(Monster* m) { spared.push_back(m); }
+void GameStats::add_killed(Monster* m) { killed.push_back(m); }
+
+int GameStats::victory_count() const {
+    return (int)(spared.size() + killed.size());
 }
 
-void Player::attack_monster(Monster* monster){
-  cout << "You are attacking " << monster->get_name() << " !" << endl;
-  monster->receive_attack(attack);
-  cout << "He has now " << monster->get_hp() << " HP !" << endl;
+Ending GameStats::get_ending() const {
+    if (killed.empty()) return Ending::PACIFIST;
+    if (spared.empty()) return Ending::GENOCIDE;
+    return Ending::NEUTRAL;
 }
 
-void Encounter::player_turn(){
-  cout << "It's your turn !" << endl;
-  cout << "In front of you are : " << endl;
-  for(size_t i = 0 ; i < monster_list.size(); i++){
-    cout << monster_list[i]->get_name() << endl;
-  }
+// Character
+
+Character::Character(string name, int hp, int atk, int def)
+    : name(name), max_health(hp), curr_health(hp), attack(atk), defense(def) {}
+
+// Player
+
+Player::Player(string name, int hp, int lv, int atk, int def)
+    : Character(name, hp, atk, def), lv(lv) {}
+
+void Player::receive_attack(int damages) {
+    curr_health = max(0, curr_health - damages);
+}
+
+void Player::use_item(int index) {
+    if (index < 0 || index >= (int)inventory.size()) return;
+    Item& item = inventory[index];
+    if (item.get_quantity() <= 0) return;
+    curr_health = min(max_health, curr_health + item.get_value());
+    item.use();
+}
+
+void Player::add_item(const Item& item) {
+    inventory.push_back(item);
+}
+
+// Monster
+
+Monster::Monster(string name, int hp, int atk, int def, int mercy_goal, vector<string> act_ids)
+    : Character(name, hp, atk, def), mercy(0), mercy_goal(mercy_goal), act_ids(act_ids) {}
+
+void Monster::receive_attack(int damages) {
+    curr_health = max(0, curr_health - damages);
+}
+
+void Monster::modify_mercy(int delta) {
+    mercy = max(0, min(mercy_goal, mercy + delta));
 }
