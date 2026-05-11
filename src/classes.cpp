@@ -67,3 +67,12 @@ void Monster::receive_attack(int damages) {
 void Monster::modify_mercy(int delta) {
     mercy = max(0, min(mercy_goal, mercy + delta));
 }
+
+void Monster::reset() {
+    curr_health = max_health;
+    mercy = 0;
+}
+
+void Player::augmenter_attaque(int montant) {
+    attack += montant;
+}

@@ -76,6 +76,7 @@ public:
     void receive_attack(int damages) override;
     void use_item(int index);
     void add_item(const Item& item);
+    void augmenter_attaque(int montant);
     GameStats&    get_stats()     { return stats; }
     vector<Item>& get_inventory() { return inventory; }
     int get_lv() const { return lv; }
@@ -93,6 +94,7 @@ public:
     void receive_attack(int damages) override;
     void modify_mercy(int delta);
     bool is_sparable()              const { return mercy >= mercy_goal; }
+    void reset();
     virtual int    get_act_count()  const = 0;
     virtual string get_category()   const = 0;
     int                   get_mercy()      const { return mercy; }

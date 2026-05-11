@@ -17,14 +17,9 @@ static map<string, Act> build_catalogue() {
     };
 }
 
-struct MonsterBlueprint {
-    string category, name;
-    int hp, atk, def, mercy_goal;
-    vector<string> act_ids;
-};
-
-static vector<MonsterBlueprint> load_monster_blueprints(const string& filepath) {
-    vector<MonsterBlueprint> blueprints;
+// Lit le CSV et crée directement les objets Monster correspondants
+static vector<Monster*> charger_monstres(const string& filepath) {
+    vector<Monster*> monstres;
     auto data = read_csv(filepath);
     if (data.empty()) {
         cerr << "Error: could not load monsters from " << filepath << "\n";
@@ -35,32 +30,30 @@ static vector<MonsterBlueprint> load_monster_blueprints(const string& filepath) 
             cerr << "Warning: malformed monster row, skipping.\n";
             continue;
         }
-        MonsterBlueprint bp;
-        bp.category = row[0];
-        bp.name     = row[1];
+        string categorie = row[0];
+        string nom       = row[1];
+        int hp, atk, def, mercy_goal;
         try {
-            bp.hp         = stoi(row[2]);
-            bp.atk        = stoi(row[3]);
-            bp.def        = stoi(row[4]);
-            bp.mercy_goal = stoi(row[5]);
+            hp         = stoi(row[2]);
+            atk        = stoi(row[3]);
+            def        = stoi(row[4]);
+            mercy_goal = stoi(row[5]);
         } catch (...) {
             cerr << "Warning: malformed stats for monster \"" << row[1] << "\", skipping.\n";
             continue;
         }
+        vector<string> act_ids;
         for (int i = 6; i < (int)row.size(); i++) {
-            if (row[i] != "-") bp.act_ids.push_back(row[i]);
+            if (row[i] != "-") act_ids.push_back(row[i]);
         }
-        blueprints.push_back(bp);
+        if (categorie == "NORMAL")
+            monstres.push_back(new NormalMonster(nom, hp, atk, def, mercy_goal, act_ids));
+        else if (categorie == "MINIBOSS")
+            monstres.push_back(new MinibossMonster(nom, hp, atk, def, mercy_goal, act_ids));
+        else
+            monstres.push_back(new BossMonster(nom, hp, atk, def, mercy_goal, act_ids));
     }
-    return blueprints;
-}
-
-static Monster* spawn_monster(const MonsterBlueprint& bp) {
-    if (bp.category == "NORMAL")
-        return new NormalMonster(bp.name, bp.hp, bp.atk, bp.def, bp.mercy_goal, bp.act_ids);
-    if (bp.category == "MINIBOSS")
-        return new MinibossMonster(bp.name, bp.hp, bp.atk, bp.def, bp.mercy_goal, bp.act_ids);
-    return new BossMonster(bp.name, bp.hp, bp.atk, bp.def, bp.mercy_goal, bp.act_ids);
+    return monstres;
 }
 
 static void load_items(Player& player, const string& filepath) {
@@ -92,6 +85,8 @@ static void print_start_summary(Player& player) {
 }
 
 int main() {
+    srand(time(0));
+
     cout << "Welcome to ALTERDUNE\n\n";
     cout << "Enter your character's name: ";
     string player_name;
@@ -101,9 +96,9 @@ int main() {
     Player* player = new Player(player_name);
 
     load_items(*player, "data/items.csv");
-    auto blueprints = load_monster_blueprints("data/monsters.csv");
+    vector<Monster*> tous_monstres = charger_monstres("data/monsters.csv");
 
-    if (blueprints.empty()) {
+    if (tous_monstres.empty()) {
         cerr << "Error: no monsters loaded. Exiting.\n";
         delete player;
         return 1;
@@ -113,17 +108,18 @@ int main() {
 
     map<string, Act> catalogue = build_catalogue();
 
-    mt19937 rng(random_device{}());
-    uniform_int_distribution<int> pick(0, (int)blueprints.size() - 1);
-
-    // monsters created during combat — kept alive for GameStats pointers
-    vector<Monster*> combat_monsters;
+    // Séparer les monstres normaux/miniboss des boss
+    vector<Monster*> monstres_normaux, monstres_boss;
+    for (Monster* m : tous_monstres) {
+        if (m->get_category() == "BOSS") monstres_boss.push_back(m);
+        else                             monstres_normaux.push_back(m);
+    }
 
     Menu main_menu;
-    bool running = true;
+    bool running  = true;
     bool defeated = false;
 
-    while (running && player->get_stats().victory_count() < 10) {
+    while (running && player->get_stats().victory_count() < 1) {
         cout << "\n=== MAIN MENU ===  (wins: " << player->get_stats().victory_count() << "/10)\n";
         cout << "1. Bestiary\n";
         cout << "2. Start a fight\n";
@@ -139,15 +135,25 @@ int main() {
             main_menu.show_bestiary(player->get_stats());
 
         } else if (choice == 2) {
-            Monster* m = spawn_monster(blueprints[pick(rng)]);
-            combat_monsters.push_back(m);
+            // Rencontre 5 → premier boss, rencontre 10 → deuxième boss
+            int num_rencontre = player->get_stats().victory_count() + 1;
+            Monster* m;
+            if ((num_rencontre == 5 || num_rencontre == 10) && !monstres_boss.empty()) {
+                int idx = (num_rencontre == 5) ? 0 : min(1, (int)monstres_boss.size() - 1);
+                m = monstres_boss[idx];
+            } else {
+                m = monstres_normaux[rand() % monstres_normaux.size()];
+            }
+            m->reset();
 
             BattleMenu battle(m);
             BattleOutcome result = battle.run(*player, catalogue);
 
             if (result == BattleOutcome::WIN_KILLED) {
                 player->get_stats().add_killed(m);
-                cout << "\nVictory! (" << player->get_stats().victory_count() << "/10 wins)\n";
+                player->augmenter_attaque(1);
+                cout << "\nVictory! Your attack increased to " << player->get_attack()
+                     << "! (" << player->get_stats().victory_count() << "/10 wins)\n";
             } else if (result == BattleOutcome::WIN_SPARED) {
                 player->get_stats().add_spared(m);
                 cout << "\nVictory! (" << player->get_stats().victory_count() << "/10 wins)\n";
@@ -175,33 +181,39 @@ int main() {
     }
 
     // Endings
-    if (player->get_stats().victory_count() >= 10) {
+    if (player->get_stats().victory_count() >= 1) {
         cout << "\n=== GAME COMPLETE ===\n";
         switch (player->get_stats().get_ending()) {
             case Ending::GENOCIDE:
                 cout << "GENOCIDE ENDING\n";
-                cout << "You slaughtered everything in your path. The dust settles.\n";
-                cout << "There is nothing left.\n";
+                cout << "Greetings. I am " << player->get_name() << "..\n";
+                cout << "The demon that comes whem people call its name.\n";
+                cout << "Let us rease this pointless world, and move on to the next.\n";
+                cout << "9999999999999999999999999999999999999999999999.\n9999999999999999999999999999999999999999999999.\n9999999999999999999999999999999999999999999999.\n";
                 break;
             case Ending::PACIFIST:
                 cout << "PACIFIST ENDING\n";
-                cout << "You spared every monster you encountered. The world is at peace.\n";
-                cout << "Everyone gets a happy ending.\n";
+                cout << "You were able to reach the surface.\n";
+                cout << "\"" << player->get_name() << "\"...\n";
+                cout << "You came from this world, right ?\n";
+                cout << "If you really do not have any other place to go...\n";
+                cout << "I will do my best to take care of you, for as long as you need\n";
                 break;
             case Ending::NEUTRAL:
                 cout << "NEUTRAL ENDING\n";
-                cout << "You fought some and spared others.\n";
-                cout << "The world remains... uncertain.\n";
+                cout << "Is killing things really necessary ?.\n";
+                cout << "I...\n";
+                cout << "I honestly don't know anymore\n";
                 break;
         }
     } else if (defeated) {
         cout << "\n=== GAME OVER ===\n";
-        cout << "You fell after " << player->get_stats().victory_count() << " victories.\n";
+        cout << "You cannot give up just yet...\n";
     } else {
-        cout << "\nSee you next time.\n";
+        cout << "\nYou are filled with determination\n";
     }
 
-    for (Monster* m : combat_monsters) delete m;
+    for (Monster* m : tous_monstres) delete m;
     delete player;
     return 0;
 }

@@ -1,9 +1,8 @@
 #include "menu.hpp"
 
-static int roll_damage(int max_hp) {
-    static mt19937 rng(random_device{}());
-    uniform_int_distribution<int> dist(0, max_hp);
-    return dist(rng);
+static int roll_damage(int max_dmg) {
+    if (max_dmg <= 0) return 0;
+    return rand() % (max_dmg + 1);
 }
 
 // Menu
@@ -156,7 +155,7 @@ bool BattleMenu::try_mercy() {
 }
 
 void BattleMenu::monster_attacks(Player& player) {
-    int dmg = roll_damage(player.get_max_health());
+    int dmg = roll_damage(enemy->get_attack());
     if (dmg == 0) {
         cout << enemy->get_name() << " attacks but misses!\n";
     } else {
